@@ -47,6 +47,9 @@ function getStoredQuotationsForDisplay() {
 
 const money = (value: number, currency = "NGN") => new Intl.NumberFormat("en-NG", { style: "currency", currency, maximumFractionDigits: currency === "NGN" ? 0 : 2 }).format(value);
 
+const getNextQuotationNumber = () => `BABC-Q-${String(getSavedQuotations().length + 1).padStart(4, "0")}`;
+const formatDocumentDate = (date: Date) => date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
 const getTimeGreeting = () => {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 12) return "Good morning";
@@ -65,23 +68,14 @@ const getCurrentDate = () => {
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      {/* Premium BW Logo with floating effect */}
-      <div className="relative animate-float shrink-0">
-        {/* Logo background glow */}
-        <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-blue-400/30 to-blue-600/20 blur-lg" />
-        
-        {/* Logo image */}
-        <img 
-          src="/B.A.B.C LOGO.png" 
-          alt="B.A.B.C Logo" 
-          className="relative size-11 rounded-lg shadow-lg glow-primary object-contain"
-        />
+      <div className="shrink-0 rounded-lg border border-border bg-white p-1">
+        <img src="/B.A.B.C LOGO.png" alt="B.A.B.C Logo" className="size-9 object-contain" />
       </div>
       
       {!compact && (
-        <div className="animate-fade-in">
+        <div>
           <p className="font-brand text-sm font-bold leading-none text-foreground">B.A.B.C</p>
-          <p className="mt-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">From Vision to Legacy</p>
+          <p className="mt-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">From Vision to Legacy</p>
         </div>
       )}
     </div>
@@ -100,6 +94,8 @@ function QuotationApp() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [currentQuotationId, setCurrentQuotationId] = useState<string | null>(null);
+  const [quotationNumber, setQuotationNumber] = useState(getNextQuotationNumber);
+  const [issuedAt, setIssuedAt] = useState(() => new Date());
   const [currency, setCurrency] = useState("NGN");
   const [client, setClient] = useState({ name: "", company: "", phone: "", address: "" });
   const [title, setTitle] = useState("");
@@ -152,8 +148,10 @@ function QuotationApp() {
       return;
     }
 
+    const now = new Date();
+    const number = getNextQuotationNumber();
     const quotationData = {
-      quotationNumber: `BABC-Q-${String(getSavedQuotations().length + 1).padStart(4, "0")}`,
+      quotationNumber: number,
       title,
       client,
       items,
@@ -167,6 +165,8 @@ function QuotationApp() {
     };
 
     const saved = saveQuotation(quotationData);
+    setQuotationNumber(number);
+    setIssuedAt(now);
     console.log("✓ Quotation saved:", saved);
     console.log("✓ Total saved quotations:", getSavedQuotations().length);
     setCurrentQuotationId(saved.id);
@@ -178,6 +178,8 @@ function QuotationApp() {
   // Create new quotation
   const newQuotation = () => {
     setCurrentQuotationId(null);
+    setQuotationNumber(getNextQuotationNumber());
+    setIssuedAt(new Date());
     setTitle("");
     setClient({ name: "", company: "", phone: "", address: "" });
     setItems([]);
@@ -188,9 +190,9 @@ function QuotationApp() {
   const updateItem = (id: number, key: keyof Item, value: string | number) => setItems((current) => current.map((item) => item.id === id ? { ...item, [key]: value } : item));
   const addItem = () => setItems((current) => [...current, { id: Date.now(), description: services[4] ?? "New construction item", unit: "lump sum", quantity: 1, rate: 0 }]);
   const notify = (message: string) => setNotice(message);
-  const exportJpeg = async () => { if (!documentRef.current) return; const data = await toJpeg(documentRef.current, { quality: .96, pixelRatio: 2, backgroundColor: "#ffffff" }); const link = document.createElement("a"); link.download = "BABC-Q-0029.jpg"; link.href = data; link.click(); notify("JPEG ready for WhatsApp"); };
-  const exportPdf = async () => { if (!documentRef.current) return; const data = await toJpeg(documentRef.current, { quality: .98, pixelRatio: 2, backgroundColor: "#ffffff" }); const pdf = new jsPDF({ unit: "mm", format: "a5", orientation: "portrait" }); pdf.addImage(data, "JPEG", 0, 0, 148, 210); pdf.save("BABC-Q-0029.pdf"); notify("A5 PDF downloaded"); };
-  const shareWhatsApp = () => { const text = encodeURIComponent(`Hello ${client.name}, your B.A.B.C quotation BABC-Q-0029 for ${title} is ready. Total: ${money(total, currency)}.`); window.open(`https://wa.me/${client.phone.replace(/\D/g, "")}?text=${text}`, "_blank", "noopener,noreferrer"); };
+  const exportJpeg = async () => { if (!documentRef.current) return; const data = await toJpeg(documentRef.current, { quality: .96, pixelRatio: 2, backgroundColor: "#ffffff" }); const link = document.createElement("a"); link.download = `${quotationNumber}.jpg`; link.href = data; link.click(); notify("JPEG ready for WhatsApp"); };
+  const exportPdf = async () => { if (!documentRef.current) return; const data = await toJpeg(documentRef.current, { quality: .98, pixelRatio: 2, backgroundColor: "#ffffff" }); const pdf = new jsPDF({ unit: "mm", format: "a5", orientation: "portrait" }); pdf.addImage(data, "JPEG", 0, 0, 148, 210); pdf.save(`${quotationNumber}.pdf`); notify("A5 PDF downloaded"); };
+  const shareWhatsApp = () => { const text = encodeURIComponent(`Hello ${client.name}, your B.A.B.C quotation ${quotationNumber} for ${title} is ready. Total: ${money(total, currency)}.`); window.open(`https://wa.me/${client.phone.replace(/\D/g, "")}?text=${text}`, "_blank", "noopener,noreferrer"); };
 
   const nav = [
     ["dashboard", LayoutDashboard, "Overview"], ["quotes", FileText, "Quotations"], ["invoices", ReceiptText, "Invoices"],
@@ -201,13 +203,13 @@ function QuotationApp() {
     {notice && <div className="fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-md bg-foreground px-4 py-3 text-sm font-semibold text-background shadow-xl"><Check className="mr-2 inline size-4" />{notice}</div>}
     <aside className={cn("fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-card px-4 py-5 transition-transform lg:translate-x-0", menuOpen ? "translate-x-0" : "-translate-x-full")}>
       <div className="flex items-center justify-between px-2"><BrandMark /><Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X /></Button></div>
-      <nav className="mt-10 space-y-1">{nav.map(([id, Icon, label]) => <button key={id} onClick={() => { setView(id); setMenuOpen(false); }} className={cn("flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold transition-smooth", view === id ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg glow-primary" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground hover:shadow-md")}><Icon className="size-4" />{label}</button>)}</nav>
+      <nav className="mt-10 space-y-1">{nav.map(([id, Icon, label]) => <button key={id} onClick={() => { setView(id); setMenuOpen(false); }} className={cn("flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold transition-colors", view === id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-4" />{label}</button>)}</nav>
       <div className="absolute bottom-5 left-4 right-4 border-t border-border pt-4"><p className="text-xs font-bold">Engr. K.I Hillary</p><p className="text-[11px] text-muted-foreground">Super Admin</p></div>
     </aside>
     <main className="min-w-0 overflow-x-hidden lg:pl-64">
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur sm:px-8 shadow-sm">
-        <div className="flex items-center gap-3"><Button variant="ghost" size="icon" className="lg:hidden transition-smooth hover:bg-accent" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu /></Button><div className="animate-fade-in"><p className="text-xs font-semibold uppercase text-muted-foreground">Quotation Studio</p><p className="font-brand text-sm font-bold">B.A.B.C</p></div></div>
-        <div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="transition-smooth hover:bg-accent" aria-label="Notifications"><Bell /></Button><Button variant="gold" onClick={newQuotation} className="transition-smooth glow-primary-hover shadow-md"><Plus /> New quotation</Button></div>
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/95 px-4 backdrop-blur sm:px-8">
+        <div className="flex items-center gap-3"><Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu /></Button><div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quotation Studio</p><p className="font-brand text-sm font-bold">B.A.B.C</p></div></div>
+        <div className="flex items-center gap-2"><Button variant="ghost" size="icon" aria-label="Notifications"><Bell /></Button><Button variant="gold" onClick={newQuotation}><Plus /> New quotation</Button></div>
       </header>
 
       {view === "dashboard" && <Dashboard onCreate={() => setEditorOpen(true)} onView={() => setView("quotes")} />}
@@ -219,7 +221,7 @@ function QuotationApp() {
     </main>
 
     {editorOpen && <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm"><div className="absolute inset-y-0 right-0 flex w-full max-w-4xl flex-col bg-background shadow-2xl">
-      <div className="flex items-center justify-between border-b border-border px-5 py-4 sm:px-8"><div><p className="text-xs font-bold uppercase text-primary">BABC-Q-0029</p><h2 className="font-brand text-xl font-bold">New quotation</h2></div><Button variant="ghost" size="icon" onClick={() => setEditorOpen(false)} aria-label="Close editor"><X /></Button></div>
+      <div className="flex items-center justify-between border-b border-border px-5 py-4 sm:px-8"><div><p className="text-xs font-bold uppercase tracking-wide text-primary">{quotationNumber}</p><h2 className="font-brand text-xl font-bold">New quotation</h2></div><Button variant="ghost" size="icon" onClick={() => setEditorOpen(false)} aria-label="Close editor"><X /></Button></div>
       <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="grid gap-8 xl:grid-cols-[1fr_270px]">
         <div className="space-y-8"><section><SectionTitle number="01" title="Client & project" /><div className="grid gap-4 sm:grid-cols-2"><Field label="Client name" value={client.name} onChange={(v) => setClient({...client,name:v})}/><Field label="Company name" value={client.company} onChange={(v) => setClient({...client,company:v})}/><Field label="Phone number" value={client.phone} onChange={(v) => setClient({...client,phone:v})}/><Field label="Project address" value={client.address} onChange={(v) => setClient({...client,address:v})}/><div className="sm:col-span-2"><Field label="Quotation title" value={title} onChange={setTitle}/></div></div></section>
         <section><div className="flex items-center justify-between"><SectionTitle number="02" title="Scope & pricing" /><Button variant="outline" size="sm" onClick={addItem}><Plus /> Add item</Button></div><div className="mt-4 space-y-3">{items.map((item, i) => <div key={item.id} className="grid gap-2 border-b border-border pb-4 sm:grid-cols-[28px_1fr_80px_120px_36px]"><span className="pt-2 text-xs font-bold text-muted-foreground">{String(i+1).padStart(2,"0")}</span><Input value={item.description} onChange={(e) => updateItem(item.id,"description",e.target.value)} aria-label={`Item ${i+1} description`} /><Input type="number" min="0.001" step="0.001" value={item.quantity} onChange={(e) => updateItem(item.id,"quantity",Number(e.target.value))} aria-label="Quantity" /><Input type="number" min="0" value={item.rate} onChange={(e) => updateItem(item.id,"rate",Number(e.target.value))} aria-label="Rate" /><Button variant="ghost" size="icon" onClick={() => setItems((list) => list.filter((x) => x.id !== item.id))} aria-label="Remove item"><Trash2 /></Button></div>)}</div></section>
@@ -229,7 +231,7 @@ function QuotationApp() {
       <div className="flex flex-wrap justify-end gap-2 border-t border-border bg-card px-5 py-4 sm:px-8"><Button variant="outline" onClick={newQuotation}><Plus /> New quotation</Button><Button variant="secondary" onClick={() => notify("Draft auto-saved")}><Clock3 /> Auto-saving</Button><Button onClick={() => { saveCurrentQuotation(); setPreviewOpen(true); }}><FileCheck2 /> Save & Preview</Button></div>
     </div></div>}
 
-    {previewOpen && <div className="fixed inset-0 z-[60] overflow-y-auto bg-foreground/70 p-3 sm:p-8"><div className="mx-auto flex max-w-4xl flex-col items-center"><div className="no-print mb-4 flex w-full flex-wrap justify-between gap-2"><Button variant="secondary" onClick={() => setPreviewOpen(false)}><X /> Close</Button><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => window.print()}><Printer /> Print A5</Button><Button variant="secondary" onClick={exportPdf}><Download /> PDF</Button><Button variant="secondary" onClick={exportJpeg}><Download /> JPEG</Button><Button variant="gold" onClick={shareWhatsApp}><Share2 /> WhatsApp</Button></div></div><QuoteDocument ref={documentRef} client={client} title={title} items={items} currency={currency} subtotal={subtotal} discount={discount} total={total} deposit={deposit} converted={converted} /></div></div>}
+    {previewOpen && <div className="fixed inset-0 z-[60] overflow-y-auto bg-foreground/70 p-3 sm:p-8"><div className="mx-auto flex max-w-4xl flex-col items-center"><div className="no-print mb-4 flex w-full flex-wrap justify-between gap-2"><Button variant="secondary" onClick={() => setPreviewOpen(false)}><X /> Close</Button><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => window.print()}><Printer /> Print A5</Button><Button variant="secondary" onClick={exportPdf}><Download /> PDF</Button><Button variant="secondary" onClick={exportJpeg}><Download /> JPEG</Button><Button variant="gold" onClick={shareWhatsApp}><Share2 /> WhatsApp</Button></div></div><QuoteDocument ref={documentRef} client={client} title={title} items={items} currency={currency} subtotal={subtotal} discount={discount} total={total} deposit={deposit} converted={converted} quotationNumber={quotationNumber} issuedAt={issuedAt} /></div></div>}
   </div>;
 }
 
@@ -247,9 +249,9 @@ function Dashboard({ onCreate, onView }: { onCreate: () => void; onView: () => v
     ["Payments received", money(paidAmount), quotations.filter(q => q.status === "paid").length + " paid", CircleDollarSign],
     ["Outstanding", money(outstandingAmount), "Awaiting payment", Clock3],
   ] as const;
-  return <div className="mx-auto max-w-7xl p-4 sm:p-8"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div className="animate-slide-up"><p className="text-xs font-bold uppercase text-highlight">{getCurrentDate()}</p><h1 className="mt-2 font-brand text-3xl font-bold sm:text-4xl">{getTimeGreeting()}, Hillary.</h1><p className="mt-2 text-sm text-muted-foreground">Your business at a glance.</p></div><Button onClick={onCreate} className="transition-smooth glow-primary-hover"><Plus /> Create quotation</Button></div>
-  <div className="mt-8 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 xl:grid-cols-4 shadow-lg">{stats.map(([label,value,meta,Icon], idx) => <div key={label} className="bg-card p-5 transition-smooth hover:shadow-lg hover:translate-y-[-2px] animate-fade-in" style={{animationDelay: `${idx * 100}ms`}}><div className="flex items-center justify-between"><p className="text-xs font-semibold text-muted-foreground">{label}</p><Icon className="size-4 text-primary" /></div><p className="mt-5 text-2xl font-bold">{value}</p><p className="mt-1 text-xs font-semibold text-success">{meta}</p></div>)}</div>
-  <div className="mt-8 grid min-w-0 gap-6 xl:grid-cols-[1.55fr_1fr]"><section className="min-w-0 bg-card rounded-lg shadow-lg overflow-hidden"><div className="flex items-center justify-between border-b border-border p-5"><div><h2 className="font-brand font-bold">Recent quotations</h2><p className="mt-1 text-xs text-muted-foreground">Latest client activity</p></div><Button variant="ghost" size="sm" onClick={onView} className="transition-smooth hover:translate-x-1">View all <ChevronRight /></Button></div><QuoteTable /></section><section className="min-w-0 bg-gradient-to-br from-primary to-primary/90 p-6 text-primary-foreground rounded-lg shadow-lg"><p className="text-xs font-bold uppercase text-highlight">September performance</p><h2 className="mt-3 font-brand text-2xl font-bold">61.6% acceptance rate</h2><div className="mt-8 flex h-36 items-end gap-3">{[32,55,43,78,62,91,70].map((v,i)=><div key={i} className="flex h-full flex-1 items-end bg-primary-foreground/10 rounded-t hover:bg-primary-foreground/20 transition-smooth"><div className="w-full bg-highlight rounded-t" style={{height:`${v}%`}} /></div>)}</div><div className="mt-4 flex justify-between text-[10px] opacity-70"><span>Week 1</span><span>Week 4</span></div><div className="mt-7 border-t border-primary-foreground/20 pt-5"><p className="text-xs opacity-70">Next expiring quotation</p><p className="mt-1 text-sm font-semibold">BABC-Q-0027 · in 4 days</p></div></section></div></div>;
+  return <div className="mx-auto max-w-7xl p-4 sm:p-8"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-xs font-bold uppercase tracking-wide text-primary">{getCurrentDate()}</p><h1 className="mt-2 font-brand text-3xl font-bold sm:text-4xl">{getTimeGreeting()}, Hillary.</h1><p className="mt-2 text-sm text-muted-foreground">Your business at a glance.</p></div><Button onClick={onCreate}><Plus /> Create quotation</Button></div>
+  <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map(([label,value,meta,Icon]) => <div key={label} className="rounded-xl border border-border bg-card p-5 shadow-sm"><div className="flex items-center justify-between"><p className="text-xs font-semibold text-muted-foreground">{label}</p><span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary"><Icon className="size-4" /></span></div><p className="mt-5 text-2xl font-bold tracking-tight">{value}</p><p className="mt-1 text-xs font-medium text-muted-foreground">{meta}</p></div>)}</div>
+  <div className="mt-8 grid min-w-0 gap-6 xl:grid-cols-[1.55fr_1fr]"><section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="flex items-center justify-between border-b border-border p-5"><div><h2 className="font-brand font-bold">Recent quotations</h2><p className="mt-1 text-xs text-muted-foreground">Latest client activity</p></div><Button variant="ghost" size="sm" onClick={onView}>View all <ChevronRight /></Button></div><QuoteTable /></section><section className="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">September performance</p><h2 className="mt-3 font-brand text-2xl font-bold text-foreground">61.6% acceptance rate</h2><div className="mt-8 flex h-36 items-end gap-3">{[32,55,43,78,62,91,70].map((v,i)=><div key={i} className="flex h-full flex-1 items-end rounded-t bg-muted"><div className="w-full rounded-t bg-primary" style={{height:`${v}%`}} /></div>)}</div><div className="mt-4 flex justify-between text-[10px] text-muted-foreground"><span>Week 1</span><span>Week 4</span></div><div className="mt-7 border-t border-border pt-5"><p className="text-xs text-muted-foreground">Next expiring quotation</p><p className="mt-1 text-sm font-semibold">BABC-Q-0027 · in 4 days</p></div></section></div></div>;
 }
 
 function QuoteTable() { const quotes = getStoredQuotationsForDisplay(); return <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead><tr className="text-[10px] uppercase text-muted-foreground">{["Number / Client","Project","Amount","Status","Date",""].map(x=><th key={x} className="px-5 py-3 font-bold">{x}</th>)}</tr></thead><tbody>{quotes.map(q=><tr key={q.number} className="border-t border-border text-sm"><td className="px-5 py-4"><p className="font-bold">{q.number}</p><p className="text-xs text-muted-foreground">{q.client}</p></td><td className="px-5 py-4 text-xs">{q.project}</td><td className="px-5 py-4 font-bold">{money(q.amount)}</td><td className="px-5 py-4"><StatusPill status={q.status}/></td><td className="px-5 py-4 text-xs text-muted-foreground">{q.date}</td><td className="px-5 py-4"><Button variant="ghost" size="icon" aria-label="More options"><MoreHorizontal /></Button></td></tr>)}</tbody></table></div> }
@@ -265,21 +267,25 @@ function SectionTitle({number,title}:{number:string;title:string}) { return <div
 function Field({label,value,onChange,type="text"}:{label:string;value:string;onChange:(v:string)=>void;type?:string}) { return <div><Label>{label}</Label><Input className="mt-2" type={type} value={value} onChange={(e)=>onChange(e.target.value)} /></div> }
 function SummaryRow({label,value}:{label:string;value:string}) { return <div className="flex justify-between border-b border-border py-3 text-xs"><span className="text-muted-foreground">{label}</span><strong>{value}</strong></div> }
 
-const QuoteDocument = forwardRef<HTMLDivElement, {client:{name:string;company:string;phone:string;address:string};title:string;items:Item[];currency:string;subtotal:number;discount:number;total:number;deposit:number;converted:number}>(({client,title,items,currency,subtotal,discount,total,deposit,converted},ref) => (
-  <div ref={ref} className="print-document w-[148mm] min-h-[210mm] bg-document p-[11mm] text-foreground shadow-2xl relative">
+const QuoteDocument = forwardRef<HTMLDivElement, {client:{name:string;company:string;phone:string;address:string};title:string;items:Item[];currency:string;subtotal:number;discount:number;total:number;deposit:number;converted:number;quotationNumber:string;issuedAt:Date}>(({client,title,items,currency,subtotal,discount,total,deposit,converted,quotationNumber,issuedAt},ref) => {
+  const validUntil = new Date(issuedAt);
+  validUntil.setDate(validUntil.getDate() + 14);
+  return (
+  <div ref={ref} className="print-document relative w-[148mm] min-h-[210mm] bg-white p-[11mm] text-foreground shadow-xl ring-1 ring-black/5">
     {/* Watermark Logo - centered behind all content */}
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 overflow-hidden">
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden opacity-[0.03]">
       <img src="/B.A.B.C LOGO.png" alt="watermark" className="size-96 object-contain" />
     </div>
     
     {/* All content with z-index to appear above watermark */}
     <div className="relative z-10 space-y-5">
-      <header className="flex justify-between border-b-2 border-primary pb-5"><BrandMark/><div className="text-right"><p className="font-brand text-2xl font-bold text-primary">QUOTATION</p><p className="mt-1 text-xs font-bold">BABC-Q-0029</p><p className="mt-1 text-[9px] text-muted-foreground">11 Sep 2026 · Valid until 25 Sep 2026</p></div></header>
-      <div className="grid grid-cols-2 gap-6"><div><p className="text-[8px] font-bold uppercase text-highlight">Prepared for</p><p className="mt-2 text-sm font-bold">{client.name}</p><p className="text-[9px] text-muted-foreground">{client.company}<br/>{client.phone}<br/>{client.address}</p></div><div className="text-right"><p className="text-[8px] font-bold uppercase text-highlight">Project</p><p className="mt-2 text-xs font-bold">{title}</p></div></div>
-      <table className="w-full text-left"><thead className="bg-primary text-primary-foreground"><tr className="text-[8px] uppercase"><th className="p-2">Description</th><th className="p-2 text-center">Qty</th><th className="p-2 text-right">Rate</th><th className="p-2 text-right">Amount</th></tr></thead><tbody>{items.map(i=><tr key={i.id} className="border-b border-border text-[9px]"><td className="p-2 font-semibold">{i.description}</td><td className="p-2 text-center">{i.quantity}</td><td className="p-2 text-right">{money(i.rate,currency)}</td><td className="p-2 text-right font-bold">{money(i.rate*i.quantity,currency)}</td></tr>)}</tbody></table>
-      <div className="ml-auto w-56"><SummaryRow label="Subtotal" value={money(subtotal,currency)}/><SummaryRow label="Discount" value={`− ${money(discount,currency)}`}/><div className="mt-2 bg-primary p-3 text-primary-foreground"><div className="flex items-end justify-between"><span className="text-[8px] font-bold uppercase">Grand total</span><strong className="text-base">{money(total,currency)}</strong></div><p className="mt-1 text-right text-[8px] opacity-80">{money(converted,currency === "NGN" ? "USD" : "NGN")}</p></div><SummaryRow label="Deposit required" value={money(deposit,currency)}/><SummaryRow label="Outstanding" value={money(total-deposit,currency)}/></div>
-      <div className="grid grid-cols-2 gap-5 border-t border-border pt-4 text-[8px]"><div><p className="font-bold uppercase text-primary">NGN Payment · UBA</p><p className="mt-1">BIG WIG ARCHITECTURE AND BUILDING CONSTRUCTION<br/><b>1031019964</b></p></div><div><p className="font-bold uppercase text-primary">USD Payment · UBA</p><p className="mt-1">Kwamu Hilary Ifechukwudere · <b>2380556018</b><br/>SWIFT UNAFNGLA · Sort 033250380</p></div></div>
-      <div className="flex items-end justify-between"><div className="max-w-[65%] text-[7px] leading-relaxed text-muted-foreground">No. 5 Benbella Street, Umuchima Uli, Anambra State<br/>+234 906 788 3721 · destinybigwig@gmail.com · RC 7051820<br/>babcofficialsite.vercel.app</div><div className="text-center"><div className="mb-1 h-px w-28 bg-foreground"/><p className="text-[8px] font-bold">Engr. K.I Hillary</p><p className="text-[7px] text-muted-foreground">Authorized Signatory</p></div></div>
+      <header className="flex items-start justify-between border-b border-border pb-4"><BrandMark/><div className="text-right"><p className="font-brand text-xl font-bold tracking-wide text-primary">QUOTATION</p><p className="mt-1 text-[10px] font-semibold">{quotationNumber}</p><p className="mt-2 text-[9px] text-muted-foreground">Issued {formatDocumentDate(issuedAt)}</p><p className="text-[9px] text-muted-foreground">Valid until {formatDocumentDate(validUntil)}</p></div></header>
+      <div className="grid grid-cols-2 gap-5"><div className="rounded-lg bg-muted/50 p-3"><p className="text-[8px] font-bold uppercase tracking-wider text-primary">Prepared for</p><p className="mt-2 text-sm font-bold">{client.name || "Client name"}</p><p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">{client.company}<br/>{client.phone}<br/>{client.address}</p></div><div className="rounded-lg bg-muted/50 p-3 text-right"><p className="text-[8px] font-bold uppercase tracking-wider text-primary">Project</p><p className="mt-2 text-xs font-bold">{title || "Project title"}</p></div></div>
+      <table className="w-full border-collapse text-left"><thead className="bg-primary text-primary-foreground"><tr className="text-[8px] uppercase tracking-wide"><th className="rounded-tl-md p-2.5">Description</th><th className="p-2.5 text-center">Qty</th><th className="p-2.5 text-right">Rate</th><th className="rounded-tr-md p-2.5 text-right">Amount</th></tr></thead><tbody>{items.map(i=><tr key={i.id} className="border-b border-border text-[9px]"><td className="p-2.5 font-medium">{i.description}</td><td className="p-2.5 text-center">{i.quantity}</td><td className="p-2.5 text-right">{money(i.rate,currency)}</td><td className="p-2.5 text-right font-semibold">{money(i.rate*i.quantity,currency)}</td></tr>)}</tbody></table>
+      <div className="ml-auto w-56"><SummaryRow label="Subtotal" value={money(subtotal,currency)}/><SummaryRow label="Discount" value={`− ${money(discount,currency)}`}/><div className="mt-2 rounded-md bg-primary p-3 text-primary-foreground"><div className="flex items-end justify-between"><span className="text-[8px] font-bold uppercase tracking-wide">Grand total</span><strong className="text-base">{money(total,currency)}</strong></div><p className="mt-1 text-right text-[8px] opacity-80">{money(converted,currency === "NGN" ? "USD" : "NGN")}</p></div><SummaryRow label="Deposit required" value={money(deposit,currency)}/><SummaryRow label="Outstanding" value={money(total-deposit,currency)}/></div>
+      <div className="grid grid-cols-2 gap-5 border-t border-border pt-4 text-[8px]"><div><p className="font-bold uppercase tracking-wide text-primary">NGN Payment · UBA</p><p className="mt-1 leading-relaxed">BIG WIG ARCHITECTURE AND BUILDING CONSTRUCTION<br/><b>1031019964</b></p></div><div><p className="font-bold uppercase tracking-wide text-primary">USD Payment · UBA</p><p className="mt-1 leading-relaxed">Kwamu Hilary Ifechukwudere · <b>2380556018</b><br/>SWIFT UNAFNGLA · Sort 033250380</p></div></div>
+      <div className="flex items-end justify-between border-t border-border pt-3"><div className="max-w-[65%] text-[7px] leading-relaxed text-muted-foreground">No. 5 Benbella Street, Umuchima Uli, Anambra State<br/>+234 906 788 3721 · destinybigwig@gmail.com · RC 7051820<br/>babcofficialsite.vercel.app</div><div className="text-center"><div className="mb-1 h-px w-28 bg-foreground"/><p className="text-[8px] font-bold">Engr. K.I Hillary</p><p className="text-[7px] text-muted-foreground">Authorized Signatory</p></div></div>
     </div>
   </div>
-));
+  );
+});
