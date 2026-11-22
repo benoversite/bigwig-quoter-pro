@@ -29,6 +29,7 @@ export interface StoredQuotation {
   exchangeRate: number;
   subtotal: number;
   total: number;
+  terms?: string;
   status: "draft" | "sent" | "accepted" | "paid";
   createdAt: string;
   updatedAt: string;
