@@ -1,7 +1,7 @@
 /**
  * Quotation Storage Service
  * Handles saving and retrieving quotations from local storage
- * with optional Supabase sync capability
+ * using browser local storage
  */
 
 export interface StoredItem {
@@ -82,9 +82,11 @@ export function updateQuotation(id: string, updates: Partial<StoredQuotation>): 
   const index = quotations.findIndex(q => q.id === id);
 
   if (index === -1) return null;
+  const quotation = quotations[index];
+  if (!quotation) return null;
 
   const updated: StoredQuotation = {
-    ...quotations[index],
+    ...quotation,
     ...updates,
     updatedAt: new Date().toISOString(),
   };
@@ -145,9 +147,11 @@ export function updateDraft(id: string, updates: Partial<StoredQuotation>): Stor
   const index = drafts.findIndex(d => d.id === id);
 
   if (index === -1) return null;
+  const draft = drafts[index];
+  if (!draft) return null;
 
   const updated: StoredQuotation = {
-    ...drafts[index],
+    ...draft,
     ...updates,
     updatedAt: new Date().toISOString(),
   };
@@ -181,6 +185,7 @@ export function convertDraftToQuotation(draftId: string): StoredQuotation | null
   if (draftIndex === -1) return null;
 
   const draft = drafts[draftIndex];
+  if (!draft) return null;
   const quotation = saveQuotation({
     ...draft,
     status: "sent",

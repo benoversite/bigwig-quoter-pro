@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { toJpeg } from "html-to-image";
 import { jsPDF } from "jspdf";
@@ -14,18 +13,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { getSavedQuotations, saveDraft, updateDraft, getDrafts, saveQuotation, convertDraftToQuotation } from "@/services/quotation-service";
-
-export const Route = createFileRoute("/")({
-  head: () => ({ meta: [
-    { title: "B.A.B.C Quotation Studio" },
-    { name: "description", content: "Create construction quotations, invoices, and track payments in NGN and USD." },
-    { property: "og:title", content: "B.A.B.C Quotation Studio" },
-    { property: "og:description", content: "Professional quotation management for B.A.B.C." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary_large_image" },
-  ] }),
-  component: QuotationApp,
-});
 
 type Item = { id: number; description: string; unit: string; quantity: number; rate: number };
 type View = "dashboard" | "quotes" | "invoices" | "payments" | "clients" | "settings";
@@ -235,13 +222,15 @@ function QuotationApp() {
   </div>;
 }
 
+export default QuotationApp;
+
 function Dashboard({ onCreate, onView }: { onCreate: () => void; onView: () => void }) {
   const quotations = getSavedQuotations();
   const totalValue = quotations.reduce((sum, q) => sum + q.total, 0);
   const acceptedAmount = quotations.filter(q => q.status === "accepted").reduce((sum, q) => sum + q.total, 0);
   const acceptedCount = quotations.filter(q => q.status === "accepted").length;
   const paidAmount = quotations.filter(q => q.status === "paid").reduce((sum, q) => sum + q.total, 0);
-  const outstandingAmount = quotations.filter(q => q.status !== "paid").reduce((sum, q) => sum + (q.total - q.deposit), 0);
+  const outstandingAmount = quotations.filter(q => q.status !== "paid").reduce((sum, q) => sum + (q.total - q.total * q.depositPct / 100), 0);
   
   const stats = [
     ["Total quotations", money(totalValue), `${quotations.length} quotes`, FileText],
